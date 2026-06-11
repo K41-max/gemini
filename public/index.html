@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Flash 拡張版 体験サイト</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
+        .container { max-width: 700px; margin: 40px auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h1 { color: #1a73e8; text-align: center; font-size: 24px; }
+        textarea { width: 100%; height: 120px; padding: 12px; border: 1px solid #ced4da; border-radius: 8px; resize: none; font-size: 16px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background-color: #1a73e8; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 15px; font-weight: bold; }
+        button:hover { background-color: #1557b0; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        .result-box { margin-top: 25px; padding: 15px; background: #f8f9fa; border-left: 5px solid #1a73e8; border-radius: 4px; white-space: pre-wrap; min-height: 50px; }
+        .loading { color: #666; font-style: italic; text-align: center; display: none; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Gemini Flash (拡張思考モード) 体験</h1>
+    <textarea id="promptInput" placeholder="複雑な論理パズルや、深い思考が必要な質問を入力してください..."></textarea>
+    <button id="sendBtn" onclick="sendPrompt()">思考させて回答を得る</button>
+    
+    <div id="loading" class="loading">Geminiが思考中（深い推論を実行しています）...</div>
+    <div id="result" class="result-box" style="display: none;"></div>
+</div>
+
+<script>
+    async function sendPrompt() {
+        const promptInput = document.getElementById('promptInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const loading = document.getElementById('loading');
+        const resultBox = document.getElementById('result');
+
+        const prompt = promptInput.value.trim();
+        if (!prompt) return alert('プロンプトを入力してください。');
+
+        // UIの初期化
+        sendBtn.disabled = true;
+        loading.style.display = 'block';
+        resultBox.style.display = 'none';
+
+        try {
+            // 自作したバックエンドのAPIを叩く
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
+            });
+
+            const data = await response.json();
+            
+            if (data.reply) {
+                resultBox.innerText = data.reply;
+                resultBox.style.display = 'block';
+            } else {
+                resultBox.innerText = 'エラー: ' + (data.error || '原因不明のエラーが発生しました。');
+                resultBox.style.display = 'block';
+            }
+        } catch (error) {
+            resultBox.innerText = 'サーバーとの通信に失敗しました。';
+            resultBox.style.display = 'block';
+        } finally {
+            sendBtn.disabled = false;
+            loading.style.display = 'none';
+        }
+    }
+</script>
+
+</body>
+</html>
