@@ -3,38 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini Flash チャット & 画像認識</title>
+    <title>Gemini Flash チャット & 画像認識 (数式対応)</title>
+    
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/marked-katex-extension/lib/index.umd.js"></script>
+
     <style>
         body { font-family: Arial, sans-serif; background-color: #e6ecf0; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
         .header { background: #1a73e8; color: white; text-align: center; padding: 15px; font-size: 20px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         
-        /* チャット表示エリア */
         .chat-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
         .message { max-width: 75%; padding: 12px 16px; border-radius: 18px; font-size: 16px; line-height: 1.5; word-break: break-all; }
         .message.user { background-color: #1a73e8; color: white; align-self: flex-end; border-bottom-right-radius: 2px; white-space: pre-wrap; }
         .message.model { background-color: white; color: #333; align-self: flex-start; border-bottom-left-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         
-        /* 2. マークダウン表示用のリセット・調整スタイル */
+        /* マークダウン表示用のスタイル */
         .message.model p { margin: 0 0 10px 0; }
         .message.model p:last-child { margin-bottom: 0; }
         .message.model ul, .message.model ol { margin: 5px 0; padding-left: 20px; }
         .message.model li { margin-bottom: 4px; }
         .message.model h1, .message.model h2, .message.model h3 { font-size: 1.1rem; margin: 10px 0 5px 0; color: #1a73e8; }
-        /* インラインコード（`code`）の見た目 */
         .message.model code { background: #f1f3f4; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em; color: #d93025; }
-        /* コードブロック（```code```）の見た目 */
         .message.model pre { background: #202124; color: #fff; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 10px 0; }
         .message.model pre code { background: none; color: inherit; padding: 0; font-size: 0.9em; }
         
-        /* メッセージ内の画像 */
+        /* 4. KaTeX数式の表示微調整 */
+        .katex-display { margin: 1em 0; overflow-x: auto; overflow-y: hidden; }
+        
         .msg-images { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 5px; }
         .msg-images img { max-width: 150px; max-height: 150px; border-radius: 8px; object-fit: cover; }
 
-        /* ローディング */
         .loading { align-self: flex-start; background: #e0e0e0; color: #555; font-style: italic; display: none; }
 
-        /* 入力エリア */
         .input-area { background: white; padding: 15px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 -2px 5px rgba(0,0,0,0.05); }
         .preview-container { display: flex; gap: 10px; overflow-x: auto; }
         .preview-img { width: 60px; height: 60px; border-radius: 6px; object-fit: cover; border: 1px solid #ddd; }
@@ -48,10 +52,10 @@
 </head>
 <body>
 
-<div class="header">Gemini Flash (拡張版チャット)</div>
+<div class="header">Gemini Flash (チャット・数式対応)</div>
 
 <div class="chat-area" id="chatArea">
-    <div class="message model">こんにちは！メッセージや、複数の写真を送ってみてください。深い思考（推論）を交えてお答えします！</div>
+    <div class="message model">こんにちは！メッセージや写真を送ってみてください。化学式や数式（$\text{H}_2\text{O}$ など）も綺麗に表示できるようになりました！</div>
 </div>
 
 <div class="input-area">
@@ -65,6 +69,11 @@
 </div>
 
 <script>
+    // 5. markedにKaTeX extensionを登録する
+    marked.use(markedKatex({
+      throwOnError: false // エラーがあっても数式をそのまま表示
+    }));
+
     let chatHistory = [];
     let selectedImages = [];
 
@@ -157,7 +166,7 @@
                 const modelMsgDiv = document.createElement('div');
                 modelMsgDiv.className = 'message model';
                 
-                // 3. 届いたテキストをマークダウンとしてHTMLにパースして表示
+                // 登録したextensionにより、marked.parse内で数式も自動で変換されます
                 modelMsgDiv.innerHTML = marked.parse(data.reply);
                 
                 chatArea.appendChild(modelMsgDiv);
