@@ -18,7 +18,12 @@ app.post('/api/chat', async (req, res) => {
     const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
     const response = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { thinking_level: 'high' }
+      generationConfig: {
+        // 正しい思考モードの設定方法はこちら
+        thinkingConfig: {
+          thinkingBudget: 2048 
+        }
+      }
     });
     res.json({ reply: response.response.text() });
   } catch (error) {
@@ -27,7 +32,6 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-// Renderは環境変数PORTを自動指定するため、process.env.PORTが必須です
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
