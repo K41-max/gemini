@@ -3,70 +3,185 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini Flash 拡張版 体験サイト</title>
+    <title>Gemini Flash チャット & 画像認識</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
-        .container { max-width: 700px; margin: 40px auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        h1 { color: #1a73e8; text-align: center; font-size: 24px; }
-        textarea { width: 100%; height: 120px; padding: 12px; border: 1px solid #ced4da; border-radius: 8px; resize: none; font-size: 16px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background-color: #1a73e8; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 15px; font-weight: bold; }
-        button:hover { background-color: #1557b0; }
-        button:disabled { background-color: #ccc; cursor: not-allowed; }
-        .result-box { margin-top: 25px; padding: 15px; background: #f8f9fa; border-left: 5px solid #1a73e8; border-radius: 4px; white-space: pre-wrap; min-height: 50px; }
-        .loading { color: #666; font-style: italic; text-align: center; display: none; margin-top: 15px; }
+        body { font-family: Arial, sans-serif; background-color: #e6ecf0; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
+        .header { background: #1a73e8; color: white; text-align: center; padding: 15px; font-size: 20px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
+        /* チャット表示エリア */
+        .chat-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .message { max-width: 75%; padding: 12px 16px; border-radius: 18px; font-size: 16px; line-height: 1.5; word-break: break-all; }
+        .message.user { background-color: #1a73e8; color: white; align-self: flex-end; border-bottom-right-radius: 2px; white-space: pre-wrap; }
+        .message.model { background-color: white; color: #333; align-self: flex-start; border-bottom-left-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        
+        /* 2. マークダウン表示用のリセット・調整スタイル */
+        .message.model p { margin: 0 0 10px 0; }
+        .message.model p:last-child { margin-bottom: 0; }
+        .message.model ul, .message.model ol { margin: 5px 0; padding-left: 20px; }
+        .message.model li { margin-bottom: 4px; }
+        .message.model h1, .message.model h2, .message.model h3 { font-size: 1.1rem; margin: 10px 0 5px 0; color: #1a73e8; }
+        /* インラインコード（`code`）の見た目 */
+        .message.model code { background: #f1f3f4; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.9em; color: #d93025; }
+        /* コードブロック（```code```）の見た目 */
+        .message.model pre { background: #202124; color: #fff; padding: 12px; border-radius: 8px; overflow-x: auto; margin: 10px 0; }
+        .message.model pre code { background: none; color: inherit; padding: 0; font-size: 0.9em; }
+        
+        /* メッセージ内の画像 */
+        .msg-images { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 5px; }
+        .msg-images img { max-width: 150px; max-height: 150px; border-radius: 8px; object-fit: cover; }
+
+        /* ローディング */
+        .loading { align-self: flex-start; background: #e0e0e0; color: #555; font-style: italic; display: none; }
+
+        /* 入力エリア */
+        .input-area { background: white; padding: 15px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 -2px 5px rgba(0,0,0,0.05); }
+        .preview-container { display: flex; gap: 10px; overflow-x: auto; }
+        .preview-img { width: 60px; height: 60px; border-radius: 6px; object-fit: cover; border: 1px solid #ddd; }
+        .controls { display: flex; gap: 10px; align-items: center; }
+        
+        textarea { flex: 1; height: 44px; padding: 12px; border: 1px solid #ced4da; border-radius: 22px; resize: none; font-size: 16px; box-sizing: border-box; outline: none; }
+        .file-btn { background: #f1f3f4; border: 1px solid #ccc; padding: 10px 15px; border-radius: 22px; cursor: pointer; font-size: 14px; }
+        .send-btn { background: #1a73e8; color: white; border: none; padding: 10px 20px; border-radius: 22px; cursor: pointer; font-weight: bold; font-size: 16px; }
+        .send-btn:disabled { background: #ccc; cursor: not-allowed; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>Gemini Flash (拡張思考モード) 体験</h1>
-    <textarea id="promptInput" placeholder="複雑な論理パズルや、深い思考が必要な質問を入力してください..."></textarea>
-    <button id="sendBtn" onclick="sendPrompt()">思考させて回答を得る</button>
-    
-    <div id="loading" class="loading">Geminiが思考中（深い推論を実行しています）...</div>
-    <div id="result" class="result-box" style="display: none;"></div>
+<div class="header">Gemini Flash (拡張版チャット)</div>
+
+<div class="chat-area" id="chatArea">
+    <div class="message model">こんにちは！メッセージや、複数の写真を送ってみてください。深い思考（推論）を交えてお答えします！</div>
+</div>
+
+<div class="input-area">
+    <div class="preview-container" id="previewContainer"></div>
+    <div class="controls">
+        <input type="file" id="fileInput" multiple accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
+        <button class="file-btn" onclick="document.getElementById('fileInput').click()">📷 写真を追加</button>
+        <textarea id="promptInput" placeholder="メッセージを入力..."></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">送信</button>
+    </div>
 </div>
 
 <script>
-    async function sendPrompt() {
+    let chatHistory = [];
+    let selectedImages = [];
+
+    async function handleFileSelect(event) {
+        const files = event.target.files;
+        const container = document.getElementById('previewContainer');
+        for (let file of files) {
+            const base64Str = await convertBase64(file);
+            const mimeType = file.type;
+            const data = base64Str.split(',')[1];
+            selectedImages.push({ mimeType, data, preview: base64Str });
+
+            const img = document.createElement('img');
+            img.src = base64Str;
+            img.className = 'preview-img';
+            container.appendChild(img);
+        }
+        event.target.value = '';
+    }
+
+    function convertBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+    }
+
+    async function sendMessage() {
         const promptInput = document.getElementById('promptInput');
         const sendBtn = document.getElementById('sendBtn');
-        const loading = document.getElementById('loading');
-        const resultBox = document.getElementById('result');
+        const chatArea = document.getElementById('chatArea');
+        const previewContainer = document.getElementById('previewContainer');
 
-        const prompt = promptInput.value.trim();
-        if (!prompt) return alert('プロンプトを入力してください。');
+        const text = promptInput.value.trim();
+        if (!text && selectedImages.length === 0) return;
 
-        // UIの初期化
         sendBtn.disabled = true;
-        loading.style.display = 'block';
-        resultBox.style.display = 'none';
+        promptInput.value = '';
+
+        const userMsgDiv = document.createElement('div');
+        userMsgDiv.className = 'message user';
+        
+        if (selectedImages.length > 0) {
+            const imgContainer = document.createElement('div');
+            imgContainer.className = 'msg-images';
+            selectedImages.forEach(img => {
+                const el = document.createElement('img');
+                el.src = img.preview;
+                imgContainer.appendChild(el);
+            });
+            userMsgDiv.appendChild(imgContainer);
+        }
+        
+        if (text) {
+            const textNode = document.createTextNode(text);
+            userMsgDiv.appendChild(textNode);
+        }
+        chatArea.appendChild(userMsgDiv);
+        chatArea.scrollTop = chatArea.scrollHeight;
+
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'message model loading';
+        loadingDiv.id = 'loading';
+        loadingDiv.innerText = 'Geminiが思考中...';
+        loadingDiv.style.display = 'block';
+        chatArea.appendChild(loadingDiv);
+        chatArea.scrollTop = chatArea.scrollHeight;
+
+        const imagesToSend = [...selectedImages];
+        selectedImages = [];
+        previewContainer.innerHTML = '';
 
         try {
-            // 自作したバックエンドのAPIを叩く
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt })
+                body: JSON.stringify({
+                    history: chatHistory,
+                    message: text,
+                    images: imagesToSend
+                })
             });
 
             const data = await response.json();
-            
+            loadingDiv.remove();
+
             if (data.reply) {
-                resultBox.innerText = data.reply;
-                resultBox.style.display = 'block';
+                const modelMsgDiv = document.createElement('div');
+                modelMsgDiv.className = 'message model';
+                
+                // 3. 届いたテキストをマークダウンとしてHTMLにパースして表示
+                modelMsgDiv.innerHTML = marked.parse(data.reply);
+                
+                chatArea.appendChild(modelMsgDiv);
+
+                if (text) chatHistory.push({ role: 'user', text: text });
+                chatHistory.push({ role: 'model', text: data.reply });
             } else {
-                resultBox.innerText = 'エラー: ' + (data.error || '原因不明のエラーが発生しました。');
-                resultBox.style.display = 'block';
+                alert('エラーが発生しました: ' + data.error);
             }
         } catch (error) {
-            resultBox.innerText = 'サーバーとの通信に失敗しました。';
-            resultBox.style.display = 'block';
+            loadingDiv.remove();
+            alert('サーバーとの通信に失敗しました。');
         } finally {
             sendBtn.disabled = false;
-            loading.style.display = 'none';
+            chatArea.scrollTop = chatArea.scrollHeight;
         }
     }
+
+    document.getElementById('promptInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
 </script>
 
 </body>
